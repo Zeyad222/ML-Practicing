@@ -1,0 +1,279 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+dataset = pd.read_csv('/content/data.csv')
+dataset.head()
+
+
+Notes:
+Instead of using shape() method to get the dimension of dataset, and dtypes() method for datatype for ech column.
+
+I use the info() method to get information of dataset from name of cdimensions, datatypes, null-value if exist.
+
+Data exploration
+
+dataset.info()
+
+
+dataset.shape
+(569, 33)
+
+dataset.select_dtypes(include='object').columns
+
+len(dataset.select_dtypes(include='object').columns)
+
+dataset.select_dtypes(include=['float64','int64']).columns
+
+len(dataset.select_dtypes(include=['float64','int64']).columns)
+
+# statistical summary
+dataset.describe()
+
+
+dataset.columns
+
+Dealing with the missing values
+#Checking if there is any null values in the dataset
+dataset.isnull().values.any()
+True
+#AS We get True value that we have a null values
+dataset.isnull().values.sum()
+569
+#Let's see tha name of columns that have null values
+dataset.columns[dataset.isnull().any()]
+Index(['Unnamed: 32'], dtype='object')
+#More checking for number of columns that have null values
+len(dataset.columns[dataset.isnull().any()])
+1
+dataset['Unnamed: 32'].count()
+0
+Note:
+Now we have column['Unnamed: 32'] have a null values, so we will drop it, as there are no values in this column
+
+dataset = dataset.drop(columns='Unnamed: 32')
+dataset.shape
+(569, 32)
+dataset.isnull().values.any()
+False
+Dealing with categorical data
+dataset.select_dtypes(include='object').columns
+Index(['diagnosis'], dtype='object')
+dataset['diagnosis'].unique()
+array(['M', 'B'], dtype=object)
+#More checking number of unique values
+dataset['diagnosis'].nunique()
+
+
+
+# one hot encoding
+dataset = pd.get_dummies(data=dataset, drop_first=True)
+
+dataset.head()
+
+
+Countplot
+sns.countplot(dataset['diagnosis_M'], label='Count')
+plt.show()
+/usr/local/lib/python3.7/dist-packages/seaborn/_decorators.py:43: FutureWarning: Pass the following variable as a keyword arg: x. From version 0.12, the only valid positional argument will be `data`, and passing other arguments without an explicit keyword will result in an error or misinterpretation.
+  FutureWarning
+
+# B (0) values
+(dataset.diagnosis_M == 0).sum()
+357
+# M (1) values
+(dataset.diagnosis_M == 1).sum()
+212
+Correlation matrix and heatmap
+dataset_2 = dataset.drop(columns='diagnosis_M')
+dataset_2.head()
+
+
+dataset_2.corrwith(dataset['diagnosis_M']).plot.bar(
+    figsize=(20,10), title = 'Correlated with diagnosis_M', rot=45, grid=True
+)
+<matplotlib.axes._subplots.AxesSubplot at 0x7f0c9ed0b090>
+
+# Correlation matrix
+corr = dataset.corr()
+corr
+
+# heatmap
+plt.figure(figsize=(20,10))
+sns.heatmap(corr, annot=True)
+<matplotlib.axes._subplots.AxesSubplot at 0x7f0c9ec2ae50>
+
+Splitting the dataset train and test set
+dataset.head()
+
+
+# matrix of features / independent variables
+x = dataset.iloc[:, 1:-1].values
+x.shape
+(569, 30)
+# target variable / dependent variable
+y = dataset.iloc[:, -1].values
+y.shape
+(569,)
+from sklearn.model_selection import  train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
+x_train.shape
+(455, 30)
+x_test.shape
+(114, 30)
+y_train.shape
+(455,)
+y_test.shape
+(114,)
+Feature scaling
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+x_train = sc.fit_transform(x_train)
+x_test = sc.transform(x_test)
+x_train
+
+x_test
+
+Part 2: Building the model
+1) Logistic regression
+from sklearn.linear_model import LogisticRegression
+classifir_lr = LogisticRegression(random_state=0)
+classifir_lr.fit(x_train, y_train)
+LogisticRegression(random_state=0)
+y_pred = classifir_lr.predict(x_test)
+
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
+acc = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred)
+rec = recall_score(y_test, y_pred)
+results = pd.DataFrame([['Logistic Regression', acc, f1, prec, rec]],
+               columns = ['Model', 'Accuracy', 'F1 Score', 'Precision', 'Recall'])
+results
+Model	Accuracy	F1 Score	Precision	Recall
+0	Logistic Regression	0.964912	0.957447	0.957447	0.957447
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+[[65  2]
+ [ 2 45]]
+Cross validation
+In cross-validation the data is classified/divided by into equal k-folds/parts and the accuracies will be computed with diffrent k-folds on x_train and y_train and with every time it will take a different input x_train and y_train.
+
+from sklearn.model_selection import cross_val_score
+accuracies = cross_val_score(estimator=classifir_lr, X=x_train, y=y_train, cv=10)
+print("Accuracy is {:.2f} %".format(accuracies.mean()*100))
+print("Standard Deviation is {:.2f} %".format(accuracies.std()*100))
+
+2) Random forest
+from sklearn.ensemble import RandomForestClassifier
+classifier_rm = RandomForestClassifier(random_state=0)
+classifier_rm.fit(x_train, y_train)
+RandomForestClassifier(random_state=0)
+y_pred = classifier_rm.predict(x_test)
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
+acc = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred)
+rec = recall_score(y_test, y_pred)
+model_results = pd.DataFrame([['Random forest', acc, f1, prec, rec]],
+               columns = ['Model', 'Accuracy', 'F1 Score', 'Precision', 'Recall'])
+results = results.append(model_results, ignore_index=True)
+results
+Model	Accuracy	F1 Score	Precision	Recall
+0	Logistic Regression	0.964912	0.957447	0.957447	0.957447
+1	Random forest	0.964912	0.958333	0.938776	0.978723
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+[[64  3]
+ [ 1 46]]
+Cross validation
+from sklearn.model_selection import cross_val_score
+
+accuracies = cross_val_score(estimator=classifier_rm, X=x_train, y=y_train, cv=10)
+
+print("Accuracy is {:.2f} %".format(accuracies.mean()*100))
+print("Standard Deviation is {:.2f} %".format(accuracies.std()*100))
+Accuracy is 96.05 %
+Standard Deviation is 3.07 %
+Note
+We have take the decision based on the cross-validation accuracy as it seems the accuracy of two model logestic regreesion and Randomforest are same.
+
+Part 3: Randomized Search to find the best parameters (Logistic regression)
+from sklearn.model_selection import RandomizedSearchCV
+parameters = {'penalty':['l1', 'l2', 'elasticnet', 'none'],
+              'C':[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
+              'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
+              }
+parameters
+{'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+ 'C': [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
+ 'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']}
+random_search = RandomizedSearchCV(estimator=classifir_lr, param_distributions=parameters, n_iter=5, 
+                                   scoring='roc_auc', n_jobs = -1, cv=5, verbose=3)
+random_search.fit(x_train, y_train)
+
+
+RandomizedSearchCV(cv=5, estimator=LogisticRegression(random_state=0), n_iter=5,
+                   n_jobs=-1,
+                   param_distributions={'C': [0.25, 0.5, 0.75, 1.0, 1.25, 1.5,
+                                              1.75, 2.0],
+                                        'penalty': ['l1', 'l2', 'elasticnet',
+                                                    'none'],
+                                        'solver': ['newton-cg', 'lbfgs',
+                                                   'liblinear', 'sag',
+                                                   'saga']},
+                   scoring='roc_auc', verbose=3)
+random_search.best_estimator_
+LogisticRegression(C=1.75, penalty='none', random_state=0, solver='saga')
+random_search.best_score_
+0.9954022988505746
+random_search.best_params_
+{'solver': 'saga', 'penalty': 'none', 'C': 1.75}
+Part 4: Final model (Logistic regression)
+from sklearn.linear_model import LogisticRegression
+classifir = LogisticRegression(C=1.5, class_weight=None, dual=False, fit_intercept=True,
+                   intercept_scaling=1, l1_ratio=None, max_iter=100,
+                   multi_class='auto', n_jobs=None, penalty='l1',
+                   random_state=0, solver='saga', tol=0.0001, verbose=0,
+                   warm_start=False)
+classifir.fit(x_train, y_train)
+
+LogisticRegression(C=1.5, penalty='l1', random_state=0, solver='saga')
+y_pred = classifir.predict(x_test)
+acc = accuracy_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred)
+rec = recall_score(y_test, y_pred)
+
+model_results = pd.DataFrame([['Final Logistic Regression', acc, f1, prec, rec]],
+               columns = ['Model', 'Accuracy', 'F1 Score', 'Precision', 'Recall'])
+
+
+results = results.append(model_results, ignore_index = True)
+results
+
+Cross validation
+from sklearn.model_selection import cross_val_score
+
+accuracies = cross_val_score(estimator=classifir, X=x_train, y=y_train, cv=10)
+
+print("Accuracy is {:.2f} %".format(accuracies.mean()*100))
+print("Standard Deviation is {:.2f} %".format(accuracies.std()*100))
+
+Part 5: Predicting a single observation
+dataset.head()
+id	radius_mean	texture_mean	perimeter_mean	area_mean	smoothness_mean	compactness_mean	concavity_mean	concave points_mean	symmetry_mean	...	texture_worst	perimeter_worst	area_worst	smoothness_worst	compactness_worst	concavity_worst	concave points_worst	symmetry_worst	fractal_dimension_worst	diagnosis_M
+0	842302	17.99	10.38	122.80	1001.0	0.11840	0.27760	0.3001	0.14710	0.2419	...	17.33	184.60	2019.0	0.1622	0.6656	0.7119	0.2654	0.4601	0.11890	1
+1	842517	20.57	17.77	132.90	1326.0	0.08474	0.07864	0.0869	0.07017	0.1812	...	23.41	158.80	1956.0	0.1238	0.1866	0.2416	0.1860	0.2750	0.08902	1
+2	84300903	19.69	21.25	130.00	1203.0	0.10960	0.15990	0.1974	0.12790	0.2069	...	25.53	152.50	1709.0	0.1444	0.4245	0.4504	0.2430	0.3613	0.08758	1
+3	84348301	11.42	20.38	77.58	386.1	0.14250	0.28390	0.2414	0.10520	0.2597	...	26.50	98.87	567.7	0.2098	0.8663	0.6869	0.2575	0.6638	0.17300	1
+4	84358402	20.29	14.34	135.10	1297.0	0.10030	0.13280	0.1980	0.10430	0.1809	...	16.67	152.20	1575.0	0.1374	0.2050	0.4000	0.1625	0.2364	0.07678	1
+5 rows × 32 columns
+
+single_obs = [[17.99, 10.38, 122.80, 1001.0, 0.11840, 0.27760,	0.3001,	0.14710, 0.2419, 0.07871, 1.0950, 0.9053, 8.589, 153.40, 0.006399, 0.04904,	0.05373, 0.01587, 0.03003, 0.006193, 25.38,
+17.33, 184.60, 2019.0, 0.1622, 0.6656, 0.7119, 0.2654, 0.4601, 0.11890]]
+single_obs
+
+#We use the object classifirthat we took it from the final model part4
+classifir.predict(sc.transform(single_obs))
